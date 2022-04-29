@@ -18,7 +18,7 @@ results.
 Here's how you can run marb, using all of its options:
 
 ```
-marb -root /path/to/site -404 error.html -index main.html -bind host:1234
+marb -root /path/to/site -404 404.html -index main.html -bind host:1234 -https
 ```
 
 Below you'll see the list of options and their defaults, which you can
@@ -29,6 +29,8 @@ get any time by running `marb -h`:
         fallback file on error 404, relative to the root
   -bind string
         the address to bind to (default "0.0.0.0:7890")
+  -https
+        force HTTPS, based on X-Forwarded-Proto header
   -index string
         index file name (default "index.html")
   -root string
@@ -47,10 +49,12 @@ Dockerfile:
 FROM 00eg/marb
 COPY ./public/ /var/www/
 EXPOSE 7890
-ENTRYPOINT ["/bin/marb", "-404", "404.html"]
+ENTRYPOINT ["/bin/marb", "-404", "404.html", "-https"]
 ```
 
 The above Dockerfile will copy files in `./public` to the `/var/www/`
 directory, which is the default root directory. It exposes port 7890,
-which is the port marb listens on by default, and finally runs
+which is the port marb listens on by default, and runs
 `/bin/marb -404 404.html` which specifies a file to serve on error 404.
+It also enables forcing HTTPS, by redirecting requests that come via
+HTTP. This depends on the presence of `X-Forwarded-Proto` header.
