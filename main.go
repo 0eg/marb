@@ -90,6 +90,7 @@ type memoryFileServer struct {
 	index        string
 	error404     *siteFile
 	error404Name string
+	forceHTTPS   bool
 }
 
 func (s *memoryFileServer) loadFiles(curPath string) error {
@@ -170,6 +171,18 @@ func (s *memoryFileServer) redirectIndex(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, path.Dir(r.URL.Path), http.StatusMovedPermanently)
 }
 
+func (s *memoryFileServer) redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "https://"+r.Host+r.RequestURI, http.StatusMovedPermanently)
+}
+
+func (s *memoryFileServer) shouldRedirectToHTTPS(r *http.Request) bool {
+	if !s.forceHTTPS {
+		return false
+	}
+
+	return r.Header.Get("X-Forwarded-Proto") == "http"
+}
+
 func (s *memoryFileServer) serveFile(w http.ResponseWriter, r *http.Request) {
 	f := s.resolveFile(r.URL.Path)
 
@@ -205,6 +218,11 @@ func (s *memoryFileServer) serveFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *memoryFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.shouldRedirectToHTTPS(r) {
+		s.redirectToHTTPS(w, r)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodOptions:
 		s.serveOptions(w)
@@ -215,12 +233,13 @@ func (s *memoryFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newFileServer(root string, index string, fourOhFour string) (*memoryFileServer, error) {
+func newFileServer(root string, index string, fourOhFour string, forceHTTPS bool) (*memoryFileServer, error) {
 	s := &memoryFileServer{
 		root:         root,
 		files:        make(map[string]*siteFile),
 		index:        index,
 		error404Name: fourOhFour,
+		forceHTTPS:   forceHTTPS,
 	}
 	if err := s.loadFiles(root); err != nil {
 		return nil, err
@@ -230,16 +249,17 @@ func newFileServer(root string, index string, fourOhFour string) (*memoryFileSer
 }
 
 var (
-	bindAddr  = flag.String("bind", "0.0.0.0:7890", "the address to bind to")
-	rootDir   = flag.String("root", "/var/www/", "the root directory to serve files from")
-	notFound  = flag.String("404", "", "fallback file on error 404, relative to the root")
-	indexFile = flag.String("index", "index.html", "index file name")
+	bindAddr   = flag.String("bind", "0.0.0.0:7890", "the address to bind to")
+	rootDir    = flag.String("root", "/var/www/", "the root directory to serve files from")
+	notFound   = flag.String("404", "", "fallback file on error 404, relative to the root")
+	indexFile  = flag.String("index", "index.html", "index file name")
+	forceHTTPS = flag.Bool("https", false, "force HTTPS, based on X-Forwarded-Proto header")
 )
 
 func main() {
 	flag.Parse()
 
-	srv, err := newFileServer(*rootDir, *indexFile, *notFound)
+	srv, err := newFileServer(*rootDir, *indexFile, *notFound, *forceHTTPS)
 	if err != nil {
 		log.Fatal(err)
 	}

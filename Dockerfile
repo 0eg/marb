@@ -1,7 +1,7 @@
 FROM golang:alpine AS builder
 
 WORKDIR /app
-COPY . .
+COPY main.go go.mod .
 RUN go build -o /bin/marb
 
 FROM alpine
