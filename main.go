@@ -92,6 +92,7 @@ type memoryFileServer struct {
 	error404     *siteFile
 	error404Name string
 	forceHTTPS   bool
+	addrHeader   string
 }
 
 func (s *memoryFileServer) loadFiles(curPath string) error {
@@ -222,7 +223,20 @@ func (s *memoryFileServer) serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *memoryFileServer) logRequest(r *http.Request) {
+	var clientAddr string
+	if s.addrHeader != "" {
+		clientAddr = r.Header.Get(s.addrHeader)
+	} else {
+		clientAddr = r.RemoteAddr
+	}
+
+	log.Printf("%s %s %s", clientAddr, r.Method, r.RequestURI)
+}
+
 func (s *memoryFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.logRequest(r)
+
 	if s.shouldRedirectToHTTPS(r) {
 		s.redirectToHTTPS(w, r)
 		return
@@ -238,7 +252,7 @@ func (s *memoryFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newFileServer(name string, root string, index string, fourOhFour string, forceHTTPS bool) (*memoryFileServer, error) {
+func newFileServer(name string, root string, index string, fourOhFour string, forceHTTPS bool, addrHeader string) (*memoryFileServer, error) {
 	s := &memoryFileServer{
 		name:         name,
 		root:         root,
@@ -246,6 +260,7 @@ func newFileServer(name string, root string, index string, fourOhFour string, fo
 		index:        index,
 		error404Name: fourOhFour,
 		forceHTTPS:   forceHTTPS,
+		addrHeader:   addrHeader,
 	}
 	if err := s.loadFiles(root); err != nil {
 		return nil, err
@@ -261,12 +276,13 @@ var (
 	indexFile  = flag.String("index", "index.html", "index file name")
 	forceHTTPS = flag.Bool("https", false, "force HTTPS, based on X-Forwarded-Proto header")
 	serverName = flag.String("name", "", "server name, used for HTTPS redirects (e.g example.com)")
+	addrHeader = flag.String("addrHeader", "", "HTTP header which contains the client address")
 )
 
 func main() {
 	flag.Parse()
 
-	srv, err := newFileServer(*serverName, *rootDir, *indexFile, *notFound, *forceHTTPS)
+	srv, err := newFileServer(*serverName, *rootDir, *indexFile, *notFound, *forceHTTPS, *addrHeader)
 	if err != nil {
 		log.Fatal(err)
 	}

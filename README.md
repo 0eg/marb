@@ -18,7 +18,7 @@ results.
 Here's how you can run marb, using all of its options:
 
 ```
-marb -root /path/to/site -404 404.html -index main.html -bind host:1234 -https
+marb -root /path/to/site -404 404.html -index main.html -bind host:1234 -https -name example.com -addrHeader X-Forwarded-For
 ```
 
 Below you'll see the list of options and their defaults, which you can
@@ -27,12 +27,16 @@ get any time by running `marb -h`:
 ```
   -404 string
         fallback file on error 404, relative to the root
+  -addrHeader string
+        HTTP header which contains the client address
   -bind string
         the address to bind to (default "0.0.0.0:7890")
   -https
         force HTTPS, based on X-Forwarded-Proto header
   -index string
         index file name (default "index.html")
+  -name string
+        server name, used for HTTPS redirects (e.g example.com)
   -root string
         the root directory to serve files from (default "/var/www/")
 ```
