@@ -85,6 +85,7 @@ func readFile(name string, size int) (*siteFile, error) {
 }
 
 type memoryFileServer struct {
+	name         string
 	root         string
 	files        map[string]*siteFile
 	index        string
@@ -172,7 +173,11 @@ func (s *memoryFileServer) redirectIndex(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *memoryFileServer) redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "https://"+r.Host+r.RequestURI, http.StatusMovedPermanently)
+	host := s.name
+	if host == "" {
+		host = r.Host
+	}
+	http.Redirect(w, r, "https://"+host+r.RequestURI, http.StatusMovedPermanently)
 }
 
 func (s *memoryFileServer) shouldRedirectToHTTPS(r *http.Request) bool {
@@ -233,8 +238,9 @@ func (s *memoryFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newFileServer(root string, index string, fourOhFour string, forceHTTPS bool) (*memoryFileServer, error) {
+func newFileServer(name string, root string, index string, fourOhFour string, forceHTTPS bool) (*memoryFileServer, error) {
 	s := &memoryFileServer{
+		name:         name,
 		root:         root,
 		files:        make(map[string]*siteFile),
 		index:        index,
@@ -254,12 +260,13 @@ var (
 	notFound   = flag.String("404", "", "fallback file on error 404, relative to the root")
 	indexFile  = flag.String("index", "index.html", "index file name")
 	forceHTTPS = flag.Bool("https", false, "force HTTPS, based on X-Forwarded-Proto header")
+	serverName = flag.String("name", "", "server name, used for HTTPS redirects (e.g example.com)")
 )
 
 func main() {
 	flag.Parse()
 
-	srv, err := newFileServer(*rootDir, *indexFile, *notFound, *forceHTTPS)
+	srv, err := newFileServer(*serverName, *rootDir, *indexFile, *notFound, *forceHTTPS)
 	if err != nil {
 		log.Fatal(err)
 	}
