@@ -146,7 +146,7 @@ func (s *memoryFileServer) addFile(f *siteFile) {
 }
 
 func (s *memoryFileServer) resolveFile(p string) *siteFile {
-	return s.files[path.Join(*rootDir, p)]
+	return s.files[path.Join(s.root, p)]
 }
 
 func (s *memoryFileServer) serveOptions(w http.ResponseWriter) {
@@ -265,7 +265,7 @@ func newFileServer(name string, root string, index string, fourOhFour string, fo
 	if err := s.loadFiles(root); err != nil {
 		return nil, err
 	}
-	s.error404 = s.files[fourOhFour]
+	s.error404 = s.files[path.Join(s.root, fourOhFour)]
 	return s, nil
 }
 
